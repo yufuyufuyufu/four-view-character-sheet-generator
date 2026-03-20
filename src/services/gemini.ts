@@ -18,6 +18,10 @@ export async function generateFourView(params: GenerationParams): Promise<{ imag
     {
       text: `Generate a professional 2x2 four-view character turnaround sheet. It prepares for the future 3D modeling.
     
+    CRITICAL: The FIRST attached image is the PRIMARY character reference.
+    You MUST strictly follow the character design, outfit, and facial features from the first image.
+    Any subsequent images are provided as additional details, style references, or texture inspiration.
+
     CRITICAL LAYOUT REQUIREMENTS (2x2 Grid):
     - Top-Left quadrant: FRONT view (character facing directly at the camera).
     - Top-Right quadrant: BACK view (character facing directly away from the camera).
