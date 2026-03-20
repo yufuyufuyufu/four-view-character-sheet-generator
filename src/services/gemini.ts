@@ -7,6 +7,7 @@ export interface GenerationParams {
   model: GeminiModel;
   prompt: string;
   images: string[]; // base64 strings
+  isIterative?: boolean;
 }
 
 export async function generateFourView(params: GenerationParams): Promise<{ imageUrl: string; text?: string }> {
@@ -14,28 +15,26 @@ export async function generateFourView(params: GenerationParams): Promise<{ imag
   const apiKey = params.apiKey;
   const ai = new GoogleGenAI({ apiKey });
 
-  const parts = [
-    {
-      text: `Generate a professional 2x2 four-view character turnaround sheet. It prepares for the future 3D modeling.
-    
-    CRITICAL: The FIRST attached image is the PRIMARY character reference.
-    You MUST strictly follow the character design, outfit, and facial features from the first image.
-    Any subsequent images are provided as additional details, style references, or texture inspiration.
+  const systemInstruction = `You are an expert game artist. 
+  ALWAYS output a 1K resolution 2x2 grid character turnaround sheet.
+  
+  LAYOUT RULES:
+  - Top-Left: FRONT view.
+  - Top-Right: BACK view.
+  - Bottom-Left: LEFT SIDE view.
+  - Bottom-Right: RIGHT SIDE view.
+  
+  AESTHETICS:
+  - Background MUST be PURE SOLID WHITE (#FFFFFF). No shadows, no gradients.
+  - Ensure perfect character consistency across all four quadrants.
+  - CRITICAL: DO NOT generate any text labels, annotations, or watermarks on the image (e.g., avoid writing "FRONT", "BACK", "LEFT", "RIGHT"). Keep the sheet completely clean.
 
-    CRITICAL LAYOUT REQUIREMENTS (2x2 Grid):
-    - Top-Left quadrant: FRONT view (character facing directly at the camera).
-    - Top-Right quadrant: BACK view (character facing directly away from the camera).
-    - Bottom-Left quadrant: LEFT SIDE view (character's body facing to the left).
-    - Bottom-Right quadrant: RIGHT SIDE view (character's body facing to the right).
-    
-    CRITICAL STYLE REQUIREMENTS:
-    - The background MUST be pure solid white (#FFFFFF).
-    - Do not include any environment, shadows on the floor, gradients, or background elements.
-    - Ensure the left and right side views are distinct and facing opposite directions.
-    - Maintain perfectly consistent character design, proportions, and colors across all four views.
-    
-    User prompt: ${params.prompt}`
-    },
+  ${params.isIterative
+      ? "MODE: ITERATIVE REFINEMENT. The FIRST image is your PREVIOUS GENERATION. Keep the layout and character identity EXACTLY the same, ONLY modify the specific parts mentioned in the User Prompt."
+      : "MODE: NEW GENERATION. Create a new sheet based on the reference images provided."}`;
+
+  const parts = [
+    { text: `USER MODIFICATION REQUEST: ${params.prompt || "No specific changes, just generate/refine."}` },
     ...params.images.map(img => ({
       inlineData: {
         data: img.split(',')[1],
@@ -48,6 +47,7 @@ export async function generateFourView(params: GenerationParams): Promise<{ imag
     model: params.model,
     contents: { parts },
     config: {
+      systemInstruction,
       imageConfig: {
         aspectRatio: "1:1",
         imageSize: "1K"

@@ -37,6 +37,7 @@ export default function App() {
   const [resultImage, setResultImage] = useState<string | null>(null);
   const [splitImages, setSplitImages] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [isIterative, setIsIterative] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -58,6 +59,7 @@ export default function App() {
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
+    setIsIterative(false); // New manual uploads reset iterative mode
 
     Array.from(files).forEach((file: File) => {
       const reader = new FileReader();
@@ -83,7 +85,7 @@ export default function App() {
       return;
     }
     if (images.length === 0) {
-      setError('Please upload at least one reference image');
+      setError('请至少上传一张参考图');
       return;
     }
 
@@ -96,16 +98,17 @@ export default function App() {
         apiKey,
         model,
         prompt,
-        images: images.map(img => img.base64)
+        images: images.map(img => img.base64),
+        isIterative
       });
       setResultImage(result.imageUrl);
     } catch (err: any) {
       console.error(err);
-      const errorMessage = err.message || 'An error occurred during generation';
+      const errorMessage = err.message || '生成过程中发生未知错误';
       
       // Handle 403 Permission Denied specifically
       if (errorMessage.includes('403') || errorMessage.includes('PERMISSION_DENIED')) {
-        setError('403 Permission Denied: The image generation models (Banana 2 / Banana Pro) require an API key from a Google Cloud Project with billing enabled. Please check your billing status at ai.google.dev/gemini-api/docs/billing or select a different key.');
+        setError('403 权限被拒绝：该图像生成模型需要配置了结算账户的 Google Cloud API Key。请检查账单状态或更换 Key。');
         // Reset key state so they can select a new one
         handleClearKey();
       } else {
@@ -114,6 +117,19 @@ export default function App() {
     } finally {
       setIsGenerating(false);
     }
+  };
+
+  const useResultAsReference = () => {
+    if (!resultImage) return;
+    // Set the generated result as the sole new primary reference image
+    setImages([{
+      id: Math.random().toString(36).substr(2, 9),
+      url: resultImage,
+      base64: resultImage
+    }]);
+    setIsIterative(true);
+    setResultImage(null);
+    setSplitImages([]);
   };
 
   const splitImage = async () => {
@@ -172,9 +188,9 @@ export default function App() {
             <Key size={32} />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">API Key Required</h1>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">需要 API Key</h1>
             <p className="text-gray-500 text-sm leading-relaxed">
-              Please enter your Gemini API Key. It will be stored locally in your browser.
+              请输入您的 Gemini API Key。它将安全地存储在您的浏览器本地。
             </p>
           </div>
           <div className="w-full">
@@ -190,14 +206,14 @@ export default function App() {
               disabled={!tempKey.trim()}
               className="w-full bg-black text-white py-4 rounded-xl font-medium hover:bg-gray-800 transition-colors shadow-lg shadow-black/10 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Save API Key
+              保存 API Key
             </button>
             {apiKey && (
               <button 
                 onClick={() => setShowApiKeyModal(false)}
                 className="w-full mt-2 text-gray-500 py-2 rounded-xl text-sm font-medium hover:text-gray-900 transition-colors"
               >
-                Cancel
+                取消
               </button>
             )}
             <a 
@@ -206,7 +222,7 @@ export default function App() {
               rel="noreferrer"
               className="block mt-6 text-xs text-blue-500 hover:underline"
             >
-              Get an API Key from Google AI Studio
+              前往 Google AI Studio 获取 API Key
             </a>
           </div>
         </div>
@@ -223,7 +239,7 @@ export default function App() {
             <div className="w-10 h-10 bg-black rounded-xl flex items-center justify-center">
               <LayoutGrid className="text-white w-6 h-6" />
             </div>
-            <h1 className="text-xl font-semibold tracking-tight">QuadView AI</h1>
+            <h1 className="text-xl font-semibold tracking-tight">四视图 AI 构建器</h1>
           </div>
           
           <div className="flex items-center gap-4">
@@ -232,7 +248,7 @@ export default function App() {
               className="flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-sm font-medium px-4 py-2 rounded-full transition-colors"
             >
               <Key size={14} />
-              Reset API Key
+              重置 API Key
             </button>
           </div>
         </div>
@@ -242,7 +258,7 @@ export default function App() {
         {/* Left Column: Controls */}
         <div className="lg:col-span-5 space-y-8">
           <section>
-            <h2 className="text-sm font-semibold uppercase tracking-widest text-gray-400 mb-4">1. Reference Images</h2>
+            <h2 className="text-sm font-semibold uppercase tracking-widest text-gray-400 mb-4">1. 参考图上传</h2>
             <div className="grid grid-cols-3 gap-4 mb-4">
               {images.map((img, idx) => (
                 <motion.div 
@@ -260,8 +276,8 @@ export default function App() {
                     <X size={14} />
                   </button>
                   {idx === 0 && (
-                    <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[10px] py-1 text-center font-medium backdrop-blur-sm">
-                      TARGET
+                    <div className={`absolute bottom-0 left-0 right-0 ${isIterative ? 'bg-blue-600/80' : 'bg-black/60'} text-white text-[10px] py-1 text-center font-medium backdrop-blur-sm`}>
+                      {isIterative ? '迭代基础 (ITERATION BASE)' : '目标 (TARGET)'}
                     </div>
                   )}
                 </motion.div>
@@ -271,7 +287,7 @@ export default function App() {
                 className="aspect-square rounded-2xl border-2 border-dashed border-gray-300 flex flex-col items-center justify-center gap-2 hover:border-blue-500 hover:bg-blue-50/50 transition-all text-gray-400 hover:text-blue-500"
               >
                 <Upload size={24} />
-                <span className="text-xs font-medium">Upload</span>
+                <span className="text-xs font-medium">上传图片</span>
               </button>
             </div>
             <input 
@@ -282,11 +298,11 @@ export default function App() {
               accept="image/*" 
               onChange={handleImageUpload} 
             />
-            <p className="text-xs text-gray-400 italic">The first image will be used as the primary target.</p>
+            <p className="text-xs text-gray-400 italic">提示：第一张图片将被作为核心的目标特征基准。</p>
           </section>
 
           <section>
-            <h2 className="text-sm font-semibold uppercase tracking-widest text-gray-400 mb-4">2. Model Selection</h2>
+            <h2 className="text-sm font-semibold uppercase tracking-widest text-gray-400 mb-4">2. 生图模型选择</h2>
             <div className="flex p-1 bg-gray-100 rounded-2xl border border-gray-200">
               <button 
                 onClick={() => setModel('gemini-3.1-flash-image-preview')}
@@ -304,10 +320,10 @@ export default function App() {
           </section>
 
           <section>
-            <h2 className="text-sm font-semibold uppercase tracking-widest text-gray-400 mb-4">3. Prompt & Refinement</h2>
+            <h2 className="text-sm font-semibold uppercase tracking-widest text-gray-400 mb-4">3. 提示词 (Prompt) 约束与微调</h2>
             <div className="relative">
               <textarea 
-                placeholder="Describe the character, style, or adjustments..."
+                placeholder="使用 Prompt 描述角色的特征、背景风格设置、或你想要做的调整调整细节..."
                 className="w-full h-40 bg-white rounded-2xl p-6 border border-gray-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all resize-none text-base"
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
@@ -320,12 +336,12 @@ export default function App() {
                 {isGenerating ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    Generating...
+                    正在生成...
                   </>
                 ) : (
                   <>
                     <Send className="w-4 h-4" />
-                    Generate
+                    开始生成
                   </>
                 )}
               </button>
@@ -346,13 +362,13 @@ export default function App() {
         {/* Right Column: Result */}
         <div className="lg:col-span-7">
           <div className="sticky top-28">
-            <h2 className="text-sm font-semibold uppercase tracking-widest text-gray-400 mb-4">Generated Sheet</h2>
+            <h2 className="text-sm font-semibold uppercase tracking-widest text-gray-400 mb-4">四视图生成结果</h2>
             
             <div className="bg-white rounded-3xl p-4 border border-gray-200 shadow-sm min-h-[400px] flex flex-col">
               {!resultImage && !isGenerating && (
                 <div className="flex-1 flex flex-col items-center justify-center text-gray-300 gap-4">
                   <ImageIcon size={64} strokeWidth={1} />
-                  <p className="text-sm font-medium">Your generated sheet will appear here</p>
+                  <p className="text-sm font-medium">您生成的四视图网格将出现在这里</p>
                 </div>
               )}
 
@@ -363,8 +379,8 @@ export default function App() {
                     <LayoutGrid className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-black w-8 h-8" />
                   </div>
                   <div className="text-center">
-                    <p className="font-semibold text-lg">Creating your four-view sheet</p>
-                    <p className="text-sm text-gray-400">This usually takes 10-20 seconds...</p>
+                    <p className="font-semibold text-lg">正在绘制 2x2 四视图中</p>
+                    <p className="text-sm text-gray-400">请保持耐心，通常需要等待 10 - 20 秒...</p>
                   </div>
                 </div>
               )}
@@ -381,10 +397,10 @@ export default function App() {
                     
                     {/* View Labels Overlay */}
                     <div className="absolute inset-0 grid grid-cols-2 grid-rows-2 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity">
-                      <div className="p-4 flex items-start justify-start"><span className="bg-black/60 text-white text-[10px] px-2 py-1 rounded-md backdrop-blur-md">FRONT</span></div>
-                      <div className="p-4 flex items-start justify-end"><span className="bg-black/60 text-white text-[10px] px-2 py-1 rounded-md backdrop-blur-md">BACK</span></div>
-                      <div className="p-4 flex items-end justify-start"><span className="bg-black/60 text-white text-[10px] px-2 py-1 rounded-md backdrop-blur-md">LEFT</span></div>
-                      <div className="p-4 flex items-end justify-end"><span className="bg-black/60 text-white text-[10px] px-2 py-1 rounded-md backdrop-blur-md">RIGHT</span></div>
+                      <div className="p-4 flex items-start justify-start"><span className="bg-black/60 text-white text-[10px] px-2 py-1 rounded-md backdrop-blur-md">正面</span></div>
+                      <div className="p-4 flex items-start justify-end"><span className="bg-black/60 text-white text-[10px] px-2 py-1 rounded-md backdrop-blur-md">背面</span></div>
+                      <div className="p-4 flex items-end justify-start"><span className="bg-black/60 text-white text-[10px] px-2 py-1 rounded-md backdrop-blur-md">左视图</span></div>
+                      <div className="p-4 flex items-end justify-end"><span className="bg-black/60 text-white text-[10px] px-2 py-1 rounded-md backdrop-blur-md">右视图</span></div>
                     </div>
                   </div>
 
@@ -394,12 +410,12 @@ export default function App() {
                       className="flex-1 bg-gray-100 hover:bg-gray-200 text-black py-3 rounded-xl font-medium flex items-center justify-center gap-2 transition-all"
                     >
                       <Scissors size={18} />
-                      Split into 4 Views
+                      分割为 4 张独立视角
                     </button>
                     <button 
                       onClick={() => downloadImage(resultImage, 'character-sheet.png')}
                       className="p-3 bg-gray-100 hover:bg-gray-200 text-black rounded-xl transition-all"
-                      title="Download Full Sheet"
+                      title="下载完整四视图"
                     >
                       <Download size={20} />
                     </button>
@@ -413,10 +429,10 @@ export default function App() {
                     >
                       <h3 className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-4 flex items-center gap-2">
                         <Scissors size={12} />
-                        Split Views
+                        已分割视角
                       </h3>
                       <div className="grid grid-cols-4 gap-3">
-                        {['Front', 'Back', 'Left', 'Right'].map((label, idx) => (
+                        {['正面', '背面', '左侧', '右侧'].map((label, idx) => (
                           <div key={idx} className="space-y-2">
                             <div className="relative aspect-square rounded-xl overflow-hidden border border-gray-200 bg-gray-50 group">
                               <img src={splitImages[idx]} alt={label} className="w-full h-full object-cover" />
@@ -439,16 +455,25 @@ export default function App() {
 
             {/* Refinement Tip */}
             {resultImage && (
-              <div className="mt-6 p-4 bg-blue-50 rounded-2xl border border-blue-100 flex gap-3">
-                <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
-                  <RefreshCw className="text-white w-4 h-4" />
+              <div className="mt-6 p-4 bg-blue-50 rounded-2xl border border-blue-100 flex flex-col gap-3">
+                <div className="flex gap-3">
+                  <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
+                    <RefreshCw className="text-white w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-blue-900">迭代微调 (Refine)</p>
+                    <p className="text-xs text-blue-700 leading-relaxed">
+                      对本次生成的结果不够满意？可以直接点击下方按钮，将这个 2x2 画布转换为新的原图，并在上方左侧的 Prompt 中描述需要修改的细节（例如：“把角色的手套换成红色”）。
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm font-semibold text-blue-900">Pro Tip</p>
-                  <p className="text-xs text-blue-700 leading-relaxed">
-                    Not quite right? Use the prompt box to specify changes like "make the hair longer" or "add a cape" and generate again.
-                  </p>
-                </div>
+                <button 
+                  onClick={useResultAsReference}
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-medium flex items-center justify-center gap-2 transition-all mt-2 shadow-sm"
+                >
+                  <RefreshCw size={18} />
+                  微调并重绘此图
+                </button>
               </div>
             )}
           </div>
@@ -460,12 +485,12 @@ export default function App() {
         <div className="flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-2 text-gray-400">
             <LayoutGrid size={16} />
-            <span className="text-sm font-medium">QuadView AI &copy; 2026</span>
+            <span className="text-sm font-medium">四视图 AI 构建系统 &copy; 2026</span>
           </div>
           <div className="flex gap-8">
-            <a href="#" className="text-sm text-gray-400 hover:text-black transition-colors">Documentation</a>
-            <a href="#" className="text-sm text-gray-400 hover:text-black transition-colors">Privacy</a>
-            <a href="#" className="text-sm text-gray-400 hover:text-black transition-colors">Terms</a>
+            <a href="#" className="text-sm text-gray-400 hover:text-black transition-colors">项目文档</a>
+            <a href="#" className="text-sm text-gray-400 hover:text-black transition-colors">隐私保护</a>
+            <a href="#" className="text-sm text-gray-400 hover:text-black transition-colors">服务条款</a>
           </div>
         </div>
       </footer>
