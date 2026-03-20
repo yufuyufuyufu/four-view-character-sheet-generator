@@ -1,0 +1,5 @@
+{
+  "name": "Four-View Character Sheet Generator",
+  "description": "Generate professional 2x2 four-view character sheets (front, back, left, right) from reference images and text prompts using Gemini Image models.",
+  "requestFramePermissions": []
+}
