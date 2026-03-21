@@ -38,6 +38,7 @@ export default function App() {
   const [splitImages, setSplitImages] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isIterative, setIsIterative] = useState(false);
+  const [isRawMode, setIsRawMode] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -99,7 +100,8 @@ export default function App() {
         model,
         prompt,
         images: images.map(img => img.base64),
-        isIterative
+        isIterative,
+        isRaw: isRawMode
       });
       setResultImage(result.imageUrl);
     } catch (err: any) {
@@ -320,7 +322,60 @@ export default function App() {
           </section>
 
           <section>
-            <h2 className="text-sm font-semibold uppercase tracking-widest text-gray-400 mb-4">3. 提示词 (Prompt) 约束与微调</h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-sm font-semibold uppercase tracking-widest text-gray-400">3. 特殊预处理 (Raw Mode)</h2>
+              <button 
+                onClick={() => {
+                  setIsRawMode(!isRawMode);
+                  if (!isRawMode) {
+                    setIsIterative(false);
+                    setPrompt('请帮我把这张图片的背景去除，修改为纯白色背景，只保留角色主体。');
+                  } else {
+                    setPrompt('');
+                  }
+                }}
+                className={`px-3 py-1.5 rounded-full text-[10px] font-bold transition-all ${isRawMode ? 'bg-orange-500 text-white shadow-lg shadow-orange-200' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}`}
+              >
+                {isRawMode ? 'RAW 模式已开启' : '开启 RAW 模式'}
+              </button>
+            </div>
+            {isRawMode && (
+              <motion.div 
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                className="bg-orange-50/50 border border-orange-100 rounded-2xl p-4 mb-4"
+              >
+                <div className="flex gap-3 mb-3">
+                  <div className="w-8 h-8 bg-orange-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <Scissors className="text-white w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-orange-900">RAW 调用 (无系统提示词)</p>
+                    <p className="text-[10px] text-orange-700 leading-relaxed mt-0.5">
+                      此模式将跳过内置的“四视图艺术专家”系统提示词。适用于背景去除、单纯修图等不需要 2x2 网格约束的任务。
+                    </p>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button 
+                    onClick={() => setPrompt('请帮我把这张图片的背景去除，修改为纯白色背景，只保留角色主体。')}
+                    className="text-[10px] bg-white border border-orange-200 px-3 py-1.5 rounded-lg text-orange-700 hover:bg-orange-100 transition-colors"
+                  >
+                    ✨ 去除背景并留白
+                  </button>
+                  <button 
+                    onClick={() => setPrompt('把这张角色的线条加粗，转换成干净的赛璐璐勾线风格。')}
+                    className="text-[10px] bg-white border border-orange-200 px-3 py-1.5 rounded-lg text-orange-700 hover:bg-orange-100 transition-colors"
+                  >
+                    ✏️ 强化线条/勾线
+                  </button>
+                </div>
+              </motion.div>
+            )}
+          </section>
+
+          <section>
+            <h2 className="text-sm font-semibold uppercase tracking-widest text-gray-400 mb-4">4. 提示词 (Prompt) 约束与微调</h2>
             <div className="relative">
               <textarea 
                 placeholder="使用 Prompt 描述角色的特征、背景风格设置、或你想要做的调整调整细节..."

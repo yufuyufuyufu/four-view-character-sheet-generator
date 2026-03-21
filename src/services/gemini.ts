@@ -8,6 +8,7 @@ export interface GenerationParams {
   prompt: string;
   images: string[]; // base64 strings
   isIterative?: boolean;
+  isRaw?: boolean;
 }
 
 export async function generateFourView(params: GenerationParams): Promise<{ imageUrl: string; text?: string }> {
@@ -15,7 +16,9 @@ export async function generateFourView(params: GenerationParams): Promise<{ imag
   const apiKey = params.apiKey;
   const ai = new GoogleGenAI({ apiKey });
 
-  const systemInstruction = `You are an expert game artist. 
+  const systemInstruction = params.isRaw 
+    ? undefined 
+    : `You are an expert game artist. 
   ALWAYS output a 1K resolution 2x2 grid character turnaround sheet.
   
   LAYOUT RULES:
@@ -34,7 +37,7 @@ export async function generateFourView(params: GenerationParams): Promise<{ imag
       : "MODE: NEW GENERATION. Create a new sheet based on the reference images provided."}`;
 
   const parts = [
-    { text: `USER MODIFICATION REQUEST: ${params.prompt || "No specific changes, just generate/refine."}` },
+    { text: params.isRaw ? params.prompt : `USER MODIFICATION REQUEST: ${params.prompt || "No specific changes, just generate/refine."}` },
     ...params.images.map(img => ({
       inlineData: {
         data: img.split(',')[1],
